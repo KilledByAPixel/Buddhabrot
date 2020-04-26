@@ -1,0 +1,205 @@
+<!--
+
+// Buddhabrot Renderer
+// Created by Frank Force 2020
+// License GNU General Public License v3.0
+
+-->
+
+<style>
+body
+{
+    overflow:hidden;
+    color:#FFF;
+    margin:0;
+}
+div
+{
+    position:absolute;
+    text-align:left;
+    left:10px;
+    top:10px;
+}
+input
+{
+    width:100px;
+    margin:5px;
+}
+input.input_box
+{
+    width:20px; 
+    height:20px;
+}
+*
+{
+    font-size:20px;
+}
+</style>
+<body bgcolor=#222>
+<div>
+<span style=
+'font-size:25px'>Buddhabrot Renderer</span>
+<br>
+<br>Settings
+<br><input id=input_iterations value=1000 type=number min=10 max=1e4> Max Iterations
+<br><input id=input_alpha value=50 type=number min=1 max=255> Brightness
+<br><input id=input_width value=1920 type=number min=64 max=1024*16> Canvas Width
+<br><input id=input_height value=1080 type=number min=64 max=1024*16> Canvas Height
+<br><input id=input_scale value=.45 type=number min=0 max=1e3> Scale
+<br><input id=input_updateRate oninput="updateRate=parseInt(input_updateRate.value);" value=100 type=number min=1 max=1e3> Update Speed
+<br>
+<br>Fractal Type
+<br><input name=input_fractalType value=0 type=radio class=input_box> Buddhabrot
+<br><input name=input_fractalType value=1 type=radio class=input_box checked> Anti-Buddhabrot
+<br>
+<br><input id=checkbox_useSymmetry type=checkbox class=input_box checked>Make Symmetric
+<br><input id=checkbox_greyScale type=checkbox class=input_box>Greyscale
+<br><input id=checkbox_rotate type=checkbox class=input_box>Rotate
+<br>
+<br><button onclick=Screenshot()>Save</button>
+<button onclick=Reset()>Restart</button>
+<br><br>Load <input id=imageFileInput style='width:300px;'type="file" accept="image/*">
+</div>
+<center>
+<canvas id=canvas></canvas>
+</center>
+<script>
+
+'use strict';
+
+let iterations;
+let alpha;
+let updateRate;
+let scale;
+let width;
+let height;
+let fractalType;
+let useSymmetry;
+let greyScale;
+let rotate;
+
+function Loop()
+{
+    requestAnimationFrame(Loop);
+    
+    iterations = parseInt(input_iterations.value);
+    alpha = parseInt(input_alpha.value);
+    updateRate = parseInt(input_updateRate.value);
+    width = parseInt(input_width.value);
+    height = parseInt(input_height.value);
+    scale = parseFloat(input_scale.value * height);
+    useSymmetry = checkbox_useSymmetry.checked;
+    greyScale = checkbox_greyScale.checked;
+    rotate = checkbox_rotate.checked;
+    
+    fractalType = parseInt(document.querySelector('input[name="input_fractalType"]:checked').value);
+    
+    const centerX = canvas.width * (rotate?.45:.5);
+    const centerY = canvas.height * (rotate?.5:.67);
+    
+    updateRate = Math.min(updateRate, 1e3);
+    for(let j = updateRate; j-->0; )
+    {
+        const A = Math.random()*4 - 2;
+        const B = Math.random()*4 - 2;
+        let X = A;
+        let Y = B;
+        let P = [];
+        let i = iterations;
+        for(;isFinite(X)&&i-->0;)
+        {
+            [X, Y] = [2*X*Y + A, Y*Y - X*X + B];
+            P.push({ X, Y });
+        }
+        
+        if (!isFinite(X) && fractalType == 1 || isFinite(X) && fractalType == 0)
+            continue;
+
+        P.map
+        (
+            function(p,i)
+            {
+                if (greyScale)
+                    context.fillStyle = `rgb(${ alpha }, ${ alpha }, ${ alpha })`;
+                else
+                    context.fillStyle = `rgb(
+                        ${ i>=iterations/10 ? alpha : 0 },
+                        ${ i<iterations/10 && i>=iterations/50 ? alpha : 0 },
+                        ${ i<iterations/50 ? alpha : 0 })`;
+                    
+                let X = p.X*scale;
+                let Y = p.Y*scale;
+                
+                if (rotate)
+                    [X,Y]=[-Y,X];
+                
+                context.fillRect(centerX + X|0, Y + centerY|0, 1, 1);
+                if (useSymmetry)
+                {
+                    if (rotate)
+                        context.fillRect(centerX + X|0, Y - centerY|0, 1, 1);
+                    else
+                        context.fillRect(centerX - X|0, Y + centerY|0, 1, 1);
+                }
+            }
+        )
+    }
+    
+    // fit canvas to window
+    const aspect = canvas.width/canvas.height;
+    const styleWidth = aspect > innerWidth/innerHeight ? 
+        innerWidth : innerHeight*aspect;
+    canvas.style.width = styleWidth +'px';
+    document.body.style.textAlign = 'center';
+}
+
+function Reset()
+{
+    canvas.width = width;
+    canvas.height = height;
+    context.fillRect(0, 0, width, height);
+    context.globalCompositeOperation = 'lighter';
+}
+
+function Screenshot()
+{
+    download(canvas.toDataURL("image/png"), 'JSBrot.png',"image/png");
+}
+
+const context = canvas.getContext('2d');
+Loop();
+Reset();
+
+// image loader
+imageFileInput.onchange =(e)=>
+{
+    const file = e.target.files[0];
+   
+    if (!file)
+        return 0;
+    
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = function(readerEvent)
+    {
+        const content = readerEvent.target.result;
+        const image = new Image();
+        image.onload = function()
+        {
+            canvas.width = width = input_width.value = image.width;
+            canvas.height = height = input_height.value = image.height;
+            context.fillRect(0, 0, width, height);
+            context.drawImage(image, 0, 0, width, height);
+            context.globalCompositeOperation = 'lighter';
+        }
+        
+        image.src = content;
+    }
+}
+
+///////////////////////////////////////////////////////////////////////  
+//download.js v4.21, by dandavis; 2008-2018. [MIT] see http://danml.com/download.html for tests/usage
+
+(function(root,factory){typeof define=="function"&&define.amd?define([],factory):typeof exports=="object"?module.exports=factory():root.download=factory()})(this,function(){return function download(data,strFileName,strMimeType){let self=window,defaultMime="application/octet-stream",mimeType=strMimeType||defaultMime,payload=data,url=!strFileName&&!strMimeType&&payload,anchor=document.createElement("a"),toString=function(a){return String(a)},myBlob=self.Blob||self.MozBlob||self.WebKitBlob||toString,fileName=strFileName||"download",blob,reader;myBlob=myBlob.call?myBlob.bind(self):Blob,String(this)==="true"&&(payload=[payload,mimeType],mimeType=payload[0],payload=payload[1]);if(url&&url.length<2048){fileName=url.split("/").pop().split("?")[0],anchor.href=url;if(anchor.href.indexOf(url)!==-1){let ajax=new XMLHttpRequest;return ajacontext.open("GET",url,!0),ajacontext.responseType="blob",ajacontext.onload=function(e){download(e.target.response,fileName,defaultMime)},setTimeout(function(){ajacontext.send()},0),ajax}}if(/^data:([\w+-]+\/[\w+.-]+)?[,;]/.test(payload)){if(!(payload.length>2096103.424&&myBlob!==toString))return navigator.msSaveBlob?navigator.msSaveBlob(dataUrlToBlob(payload),fileName):saver(payload);payload=dataUrlToBlob(payload),mimeType=payload.type||defaultMime}else if(/([\x80-\xff])/.test(payload)){let i=0,tempUiArr=new Uint8Array(payload.length),mx=tempUiArr.length;for(i;i<mx;++i)tempUiArr[i]=payload.charCodeAt(i);payload=new myBlob([tempUiArr],{type:mimeType})}blob=payload instanceof myBlob?payload:new myBlob([payload],{type:mimeType});function dataUrlToBlob(strUrl){let parts=strUrl.split(/[:;,]/),type=parts[1],indexDecoder=strUrl.indexOf("charset")>0?3:2,decoder=parts[indexDecoder]=="base64"?atob:decodeURIComponent,binData=decoder(parts.pop()),mx=binData.length,i=0,uiArr=new Uint8Array(mx);for(i;i<mx;++i)uiArr[i]=binData.charCodeAt(i);return new myBlob([uiArr],{type:type})}function saver(url,winMode){if("download"in anchor)return anchor.href=url,anchor.setAttribute("download",fileName),anchor.className="download-js-link",anchor.innerHTML="downloading...",anchor.style.display="none",anchor.addEventListener("click",function(e){e.stopPropagation()}),document.body.appendChild(anchor),setTimeout(function(){anchor.click(),document.body.removeChild(anchor),winMode===!0&&setTimeout(function(){self.URL.revokeObjectURL(anchor.href)},250)},66),!0;if(/(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//.test(navigator.userAgent))return/^data:/.test(url)&&(url="data:"+url.replace(/^data:([\w\/\-\+]+)/,defaultMime)),window.open(url)||confirm("Displaying New Document\n\nUse Save As... to download, then click back to return to this page.")&&(location.href=url),!0;let f=document.createElement("iframe");document.body.appendChild(f),!winMode&&/^data:/.test(url)&&(url="data:"+url.replace(/^data:([\w\/\-\+]+)/,defaultMime)),f.src=url,setTimeout(function(){document.body.removeChild(f)},333)}if(navigator.msSaveBlob)return navigator.msSaveBlob(blob,fileName);if(self.URL)saver(self.URL.createObjectURL(blob),!0);else{if(typeof blob=="string"||blob.constructor===toString)try{return saver("data:"+mimeType+";base64,"+self.btoa(blob))}catch(y){return saver("data:"+mimeType+","+encodeURIComponent(blob))}reader=new FileReader,reader.onload=function(e){saver(this.result)},reader.readAsDataURL(blob)}return!0}});
+
+</script>
