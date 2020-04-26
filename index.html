@@ -82,6 +82,7 @@ function Loop()
 {
     requestAnimationFrame(Loop);
     
+    // update params
     iterations = parseInt(input_iterations.value);
     alpha = parseInt(input_alpha.value);
     updateRate = parseInt(input_updateRate.value);
@@ -91,34 +92,35 @@ function Loop()
     useSymmetry = checkbox_useSymmetry.checked;
     greyScale = checkbox_greyScale.checked;
     rotate = checkbox_rotate.checked;
-    
     fractalType = parseInt(document.querySelector('input[name="input_fractalType"]:checked').value);
     
+    // fractal function
     const centerX = canvas.width * (rotate?.45:.5);
     const centerY = canvas.height * (rotate?.5:.67);
-    
-    updateRate = Math.min(updateRate, 1e3);
-    for(let j = updateRate; j-->0; )
+    for(let j = Math.min(updateRate, 1e3); j-->0; )
     {
+        // mandelbrot fractal equation
         const A = Math.random()*4 - 2;
         const B = Math.random()*4 - 2;
+        const P = [];
         let X = A;
         let Y = B;
-        let P = [];
-        let i = iterations;
-        for(;isFinite(X)&&i-->0;)
+        for(let i = iterations; isFinite(X)&&i-->0;)
         {
             [X, Y] = [2*X*Y + A, Y*Y - X*X + B];
             P.push({ X, Y });
         }
         
+        // only use points in/out of the mandelbrot set
         if (!isFinite(X) && fractalType == 1 || isFinite(X) && fractalType == 0)
             continue;
 
+        // draw the points
         P.map
         (
             function(p,i)
             {
+                // apply color
                 if (greyScale)
                     context.fillStyle = `rgb(${ alpha }, ${ alpha }, ${ alpha })`;
                 else
@@ -127,19 +129,14 @@ function Loop()
                         ${ i<iterations/10 && i>=iterations/50 ? alpha : 0 },
                         ${ i<iterations/50 ? alpha : 0 })`;
                     
-                let X = p.X*scale;
-                let Y = p.Y*scale;
-                
-                if (rotate)
-                    [X,Y]=[-Y,X];
-                
+                // reder the pixel for this point
+                const X = (rotate?-p.Y : p.X)*scale;
+                const Y = (rotate? p.X : p.Y)*scale;
                 context.fillRect(centerX + X|0, Y + centerY|0, 1, 1);
                 if (useSymmetry)
                 {
-                    if (rotate)
-                        context.fillRect(centerX + X|0, Y - centerY|0, 1, 1);
-                    else
-                        context.fillRect(centerX - X|0, Y + centerY|0, 1, 1);
+                    const r = rotate ? 1 : -1;
+                    context.fillRect(centerX + r*X|0, centerY - Y*r|0, 1, 1);
                 }
             }
         )
@@ -149,7 +146,7 @@ function Loop()
     const aspect = canvas.width/canvas.height;
     const styleWidth = aspect > innerWidth/innerHeight ? 
         innerWidth : innerHeight*aspect;
-    canvas.style.width = styleWidth +'px';
+    canvas.style.width = styleWidth + 'px';
     document.body.style.textAlign = 'center';
 }
 
@@ -158,19 +155,21 @@ function Reset()
     canvas.width = width;
     canvas.height = height;
     context.fillRect(0, 0, width, height);
+    
+    // user lighter operation to increment pixel colors
     context.globalCompositeOperation = 'lighter';
 }
 
 function Screenshot()
 {
-    download(canvas.toDataURL("image/png"), 'JSBrot.png',"image/png");
+    download(canvas.toDataURL('image/png'),'JSBrot.png','image/png');
 }
 
 const context = canvas.getContext('2d');
 Loop();
 Reset();
 
-// image loader
+// load an image
 imageFileInput.onchange =(e)=>
 {
     const file = e.target.files[0];
@@ -180,12 +179,13 @@ imageFileInput.onchange =(e)=>
     
     const reader = new FileReader();
     reader.readAsDataURL(file);
-    reader.onload = function(readerEvent)
+    reader.onload =(readerEvent)=>
     {
         const content = readerEvent.target.result;
         const image = new Image();
-        image.onload = function()
+        image.onload =()=>
         {
+            // draw the image to the canvas
             canvas.width = width = input_width.value = image.width;
             canvas.height = height = input_height.value = image.height;
             context.fillRect(0, 0, width, height);
