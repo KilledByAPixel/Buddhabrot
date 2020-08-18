@@ -1,4 +1,4 @@
-# A Fast JavaScript Buddhabrot Renderer
+# A JavaScript Buddhabrot Renderer
 ### Created by Frank Force 2020
 
 # [LIVE DEMO](https://killedbyapixel.github.io/Buddhabrot/)
